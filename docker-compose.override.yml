@@ -1,0 +1,54 @@
+# Fork addition for the self-hosted trial: local embeddings via Ollama.
+#
+# Compose auto-loads this file on top of docker-compose.yml, so the upstream
+# command in the README (`docker compose --env-file .env.docker up -d --build`)
+# picks it up unchanged.
+#
+# Why: Arkon's embedding provider is OpenAI-compatible and reads
+# `embedding_base_url`, so a local Ollama server removes the need for any
+# external embedding API. Anthropic offers no embeddings endpoint at all, so
+# this is the only path that keeps the whole stack independent of
+# OpenAI/Google.
+#
+# After `up`, configure at runtime (admin API or Settings UI):
+#   embedding_base_url             = http://ollama:11434/v1
+#   embedding_api_key__openai      = ollama          (any non-empty string)
+#   active_embedding_model_spec_id = openai/nomic-embed-text
+# then pull the model once:
+#   docker compose exec ollama ollama pull nomic-embed-text
+#
+# No host port is published: Ollama is reachable only from other containers in
+# this compose project.
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: arkon_ollama
+    restart: always
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  # Bind every published port to the VM's loopback only (Compose >= 2.24
+  # `!override`). The trial is reached through an SSH tunnel, so nothing new is
+  # exposed on the public interface alongside the two existing Plane stacks.
+  api:
+    ports: !override
+      - "127.0.0.1:5055:5055"
+
+  frontend:
+    ports: !override
+      - "127.0.0.1:3119:3000"
+
+  minio:
+    ports: !override
+      - "127.0.0.1:9002:9000"
+      - "127.0.0.1:9003:9001"
+
+volumes:
+  ollama_data:

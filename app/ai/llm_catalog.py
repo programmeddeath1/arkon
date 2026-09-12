@@ -176,6 +176,37 @@ LLM_CATALOG: dict[str, LLMModelSpec] = {
         cost_per_1m_input_tokens=0.15,
         cost_per_1m_output_tokens=0.60,
     ),
+    # --- Self-selected OpenAI-compatible endpoints ---
+    # provider="openai" is deliberate: _get_llm_class only knows google/openai/
+    # anthropic, so an OpenAI-compatible endpoint (DeepSeek, vLLM, ...) arrives
+    # through OpenAILLM with `llm_base_url` pointing at it.
+    "openai/deepseek-flash": LLMModelSpec(
+        id="openai/deepseek-flash",
+        provider="openai",
+        model_id="deepseek-flash",
+        context_window_tokens=128_000,
+        max_output_tokens=8_192,
+        supports_tools=True,
+        supports_vision=False,
+        label="DeepSeek Flash (OpenAI-compatible)",
+        cost_per_1m_input_tokens=None,
+        cost_per_1m_output_tokens=None,
+        notes="Select with llm_base_url=https://api.deepseek.com/v1. "
+              "Verified present at /v1/models. Context/output/cost figures unverified.",
+    ),
+    "openai/deepseek-v4-pro": LLMModelSpec(
+        id="openai/deepseek-v4-pro",
+        provider="openai",
+        model_id="deepseek-v4-pro",
+        context_window_tokens=128_000,
+        max_output_tokens=8_192,
+        supports_tools=True,
+        supports_vision=False,
+        label="DeepSeek V4 Pro (OpenAI-compatible)",
+        cost_per_1m_input_tokens=None,
+        cost_per_1m_output_tokens=None,
+        notes="Higher-quality sibling, same endpoint. Verified present at /v1/models.",
+    ),
 }
 
 
