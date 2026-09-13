@@ -130,6 +130,30 @@ class OpenAILLM(LLMProvider):
         """
         return getattr(self.config.spec, "max_output_tokens", None) if self.config.spec else None
 
+    def _log_usage(self, response, op: str) -> None:
+        """Record token usage for every paid LLM call.
+
+        MRP ignores usage entirely, so a compile's cost is invisible without
+        this. Logged at INFO with a stable prefix so it can be summed from the
+        container logs:
+
+            docker compose logs worker | grep 'LLMUSAGE' | ...
+        """
+        usage = getattr(response, "usage", None)
+        if usage is None:
+            return
+        prompt = getattr(usage, "prompt_tokens", None)
+        completion = getattr(usage, "completion_tokens", None)
+        cached = None
+        details = getattr(usage, "prompt_tokens_details", None)
+        if details is not None:
+            cached = getattr(details, "cached_tokens", None)
+        logger.info(
+            f"LLMUSAGE op={op} model={self.config.model_id} "
+            f"prompt_tokens={prompt} completion_tokens={completion} cached_tokens={cached}"
+        )
+
+
     async def generate(
         self,
         prompt: str,
@@ -155,6 +179,7 @@ class OpenAILLM(LLMProvider):
             kwargs["extra_body"] = self.extra_body
 
         response = await self.client.chat.completions.create(**kwargs)
+        self._log_usage(response, "generate")
         return response.choices[0].message.content or ""
 
     async def generate_with_tools(
@@ -184,6 +209,7 @@ class OpenAILLM(LLMProvider):
             kwargs["extra_body"] = self.extra_body
 
         response = await self.client.chat.completions.create(**kwargs)
+        self._log_usage(response, "generate_with_tools")
 
         choice = response.choices[0]
         message = choice.message
