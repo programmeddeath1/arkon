@@ -60,6 +60,13 @@ class ResolvedIdentity:
     # `department_id`; treat as an unordered set.
     department_ids: list[uuid.UUID] = field(default_factory=list)
     department_names: list[str] = field(default_factory=list)
+    # Legacy project/workspace scoping. Workspace memberships were deprecated
+    # and removed (see routers/auth.py `_get_workspace_memberships`), so this is
+    # empty in practice — but app/mcp/tools.py reads it in search_wiki and
+    # search_source_content, and its absence raised
+    # `AttributeError: 'ResolvedIdentity' object has no attribute 'project_ids'`
+    # on every call to both tools.
+    project_ids: list[uuid.UUID] = field(default_factory=list)
     allowed_knowledge_types: Optional[list[str]] = None  # None = all
     allowed_source_ids: Optional[list[str]] = None       # None = all
     is_admin: bool = False
