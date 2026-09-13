@@ -1243,16 +1243,14 @@ def register_tools(mcp: FastMCP):
             limit: Max drafts to return (default: 50).
             offset: Number of drafts to skip for pagination (default: 0).
         """
-        from sqlalchemy import and_, select
+        from sqlalchemy import and_, or_, select
         from sqlalchemy.orm import selectinload
 
         from app.database import async_session_factory
         from app.database.models import (
             Employee,
-            ProjectMember,
             WikiPage,
             WikiPageDraft,
-            WorkspaceRole,
         )
         from app.services.permission_engine import _get_user_permissions
 
@@ -1284,14 +1282,17 @@ def register_tools(mcp: FastMCP):
             )
 
             if not can_global:
-                editor_levels = [WorkspaceRole.EDITOR.value, WorkspaceRole.ADMIN.value]
-                workspace_pages = select(ProjectMember.project_id).where(
-                    ProjectMember.employee_id == employee.id,
-                    ProjectMember.role.in_(editor_levels),
-                )
-                stmt = stmt.where(and_(
-                    WikiPage.scope_type == "project",
-                    WikiPage.scope_id.in_(workspace_pages),
+                # Workspace/project scoping was removed from the schema; the
+                # legacy ProjectMember/WorkspaceRole branch here raised
+                # ImportError and broke this tool for every caller. Reviewers
+                # without wiki:write:all now see drafts for global pages plus
+                # pages scoped to their own departments.
+                stmt = stmt.where(or_(
+                    WikiPage.scope_type == "global",
+                    and_(
+                        WikiPage.scope_type == "department",
+                        WikiPage.scope_id.in_(identity.department_ids),
+                    ),
                 ))
 
             if workspace_id:
