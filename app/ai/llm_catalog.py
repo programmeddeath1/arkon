@@ -32,6 +32,10 @@ class LLMModelSpec:
     cost_per_1m_input_tokens: Optional[float]   # USD per 1M input tokens
     cost_per_1m_output_tokens: Optional[float]  # USD per 1M output tokens
     notes: Optional[str] = None
+    # Passed verbatim as the OpenAI SDK's `extra_body`. Used to reach
+    # provider-specific switches an OpenAI-compatible endpoint understands but
+    # the SDK has no typed field for — e.g. DeepSeek's thinking mode.
+    extra_body: Optional[dict] = None
 
 
 # All entries here must be reachable via their provider's SDK. When adding a
@@ -185,27 +189,32 @@ LLM_CATALOG: dict[str, LLMModelSpec] = {
         provider="openai",
         model_id="deepseek-flash",
         context_window_tokens=128_000,
-        max_output_tokens=8_192,
+        max_output_tokens=32_768,
         supports_tools=True,
         supports_vision=False,
         label="DeepSeek Flash (OpenAI-compatible)",
         cost_per_1m_input_tokens=None,
         cost_per_1m_output_tokens=None,
         notes="Select with llm_base_url=https://api.deepseek.com/v1. "
-              "Verified present at /v1/models. Context/output/cost figures unverified.",
+              "Verified present at /v1/models. Context/output/cost figures unverified. "
+              "Thinking disabled: measured against Arkon's own extraction prompt, "
+              "134s/38k reasoning tokens with thinking vs 16s/0 without, same valid JSON.",
+        extra_body={"thinking": {"type": "disabled"}},
     ),
     "openai/deepseek-v4-pro": LLMModelSpec(
         id="openai/deepseek-v4-pro",
         provider="openai",
         model_id="deepseek-v4-pro",
         context_window_tokens=128_000,
-        max_output_tokens=8_192,
+        max_output_tokens=32_768,
         supports_tools=True,
         supports_vision=False,
         label="DeepSeek V4 Pro (OpenAI-compatible)",
         cost_per_1m_input_tokens=None,
         cost_per_1m_output_tokens=None,
-        notes="Higher-quality sibling, same endpoint. Verified present at /v1/models.",
+        notes="Higher-quality sibling, same endpoint. Verified present at /v1/models. "
+              "Thinking disabled for the same latency reason as Flash.",
+        extra_body={"thinking": {"type": "disabled"}},
     ),
 }
 

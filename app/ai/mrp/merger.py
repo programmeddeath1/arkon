@@ -27,7 +27,7 @@ from app.ai.providers.base import LLMProvider
 # reject the merge — the LLM almost certainly stripped content.
 BODY_SHRINK_THRESHOLD = 0.7
 
-MERGE_TIMEOUT = 120  # seconds
+MERGE_TIMEOUT = 300  # seconds
 
 MERGE_SYSTEM = """\
 You are a wiki page merger. You receive two versions of the same wiki page:

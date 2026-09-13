@@ -123,7 +123,7 @@ async def check_conflicts(
             try:
                 raw = await asyncio.wait_for(
                     llm.generate(prompt, system="You are a fact-checking assistant. Return only JSON.", temperature=0.0),
-                    timeout=30,
+                    timeout=120,
                 )
                 from app.utils.text import parse_json_loose
                 result = parse_json_loose(raw)

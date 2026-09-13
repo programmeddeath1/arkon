@@ -30,7 +30,7 @@ from app.utils.progress import ProgressTracker
 CHUNK_TARGET_CHARS = 20_000
 OVERLAP_CHARS = 1_000
 MAX_MAP_CONCURRENCY = 6
-EXTRACT_TIMEOUT = 120  # seconds per extraction call
+EXTRACT_TIMEOUT = 300  # seconds per extraction call
 OVERLAP_SEPARATOR = "[…context from previous section…]\n"
 
 

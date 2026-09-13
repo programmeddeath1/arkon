@@ -246,7 +246,7 @@ async def resolve_ambiguous_concepts(
     try:
         raw = await asyncio.wait_for(
             llm.generate(prompt, system="You are a concept resolution assistant. Return only JSON.", temperature=0.0),
-            timeout=60,
+            timeout=180,
         )
         from app.utils.text import parse_json_loose
         decisions: list[bool] = parse_json_loose(raw)
@@ -407,7 +407,7 @@ async def _resolve_maybe_items(
                 system="You are a knowledge base assistant. Return only a JSON boolean array.",
                 temperature=0.0,
             ),
-            timeout=30,
+            timeout=120,
         )
         from app.utils.text import parse_json_loose
         decisions: list[bool] = parse_json_loose(raw)
@@ -535,7 +535,7 @@ async def run_planning_call(
 
     raw = await asyncio.wait_for(
         llm.generate(prompt, system=PLANNING_SYSTEM, temperature=0.1),
-        timeout=120,
+        timeout=300,
     )
 
     from app.utils.text import parse_json_loose

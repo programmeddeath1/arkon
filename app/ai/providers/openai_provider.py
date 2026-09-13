@@ -110,6 +110,26 @@ class OpenAILLM(LLMProvider):
             )
         return self._client
 
+    @property
+    def extra_body(self) -> Optional[dict]:
+        """Provider-specific request fields from the catalog spec, if any.
+
+        Reaches switches an OpenAI-compatible endpoint understands but the SDK
+        has no typed field for — currently DeepSeek's `thinking` mode.
+        """
+        return getattr(self.config.spec, "extra_body", None) if self.config.spec else None
+
+    @property
+    def spec_max_output_tokens(self) -> Optional[int]:
+        """Catalog output cap, used when a caller does not pass max_tokens.
+
+        Required for OpenAI-compatible endpoints: omitting max_tokens lets the
+        provider pick its own small default, which silently truncated a MAP
+        extraction mid-JSON (finish_reason=length, unparseable) even though the
+        model was capable of finishing in ~16s.
+        """
+        return getattr(self.config.spec, "max_output_tokens", None) if self.config.spec else None
+
     async def generate(
         self,
         prompt: str,
@@ -127,8 +147,12 @@ class OpenAILLM(LLMProvider):
             "messages": messages,
             "temperature": temperature,
         }
+        if max_tokens is None:
+            max_tokens = self.spec_max_output_tokens
         if max_tokens is not None:
             kwargs["max_tokens"] = max_tokens
+        if self.extra_body:
+            kwargs["extra_body"] = self.extra_body
 
         response = await self.client.chat.completions.create(**kwargs)
         return response.choices[0].message.content or ""
@@ -152,8 +176,12 @@ class OpenAILLM(LLMProvider):
             "tools": tools,
             "temperature": temperature,
         }
+        if max_tokens is None:
+            max_tokens = self.spec_max_output_tokens
         if max_tokens is not None:
             kwargs["max_tokens"] = max_tokens
+        if self.extra_body:
+            kwargs["extra_body"] = self.extra_body
 
         response = await self.client.chat.completions.create(**kwargs)
 
