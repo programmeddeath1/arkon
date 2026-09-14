@@ -100,19 +100,12 @@ async def _get_allowed_source_ids(identity, session: Optional[AsyncSession] = No
 # ---------------------------------------------------------------------------
 
 async def _can_review_page(session: AsyncSession, employee, page) -> bool:
-    """Editor+ in the page's workspace, or wiki:write:all globally, or admin."""
-    from app.services.permission_engine import (
-        _get_user_permissions,
-        get_workspace_role,
-        workspace_role_can,
-    )
+    """wiki:write:all globally, or admin. Workspace roles were removed."""
+    from app.services.permission_engine import _get_user_permissions
+
     if employee.role == "admin":
         return True
-    if page.scope_type == "project" and page.scope_id:
-        role = await get_workspace_role(session, employee, page.scope_id)
-        return bool(role) and workspace_role_can(role, "editor")
-    perms = _get_user_permissions(employee)
-    return "wiki:write:all" in perms
+    return "wiki:write:all" in _get_user_permissions(employee)
 
 
 async def _can_contribute_to_page(session: AsyncSession, employee, page) -> bool:
@@ -126,18 +119,11 @@ async def _can_contribute_to_page(session: AsyncSession, employee, page) -> bool
     """
     from app.services.permission_engine import (
         _get_user_permissions,
-        get_workspace_role,
         has_any_permission,
-        workspace_role_can,
     )
     if employee.role == "admin":
         return True
     perms = _get_user_permissions(employee)
-    if page.scope_type == "project" and page.scope_id:
-        role = await get_workspace_role(session, employee, page.scope_id)
-        if not role:
-            return False
-        return workspace_role_can(role, "contributor")
     if page.scope_type == "department" and page.scope_id:
         if "wiki:write:all" in perms:
             return True
@@ -1823,16 +1809,10 @@ def register_tools(mcp: FastMCP):
             if employee.role != "admin":
                 from app.services.permission_engine import (
                     _get_user_permissions,
-                    get_workspace_role,
                     has_any_permission,
-                    workspace_role_can,
                 )
                 perms = _get_user_permissions(employee)
-                if scope_type == "project" and sid:
-                    role = await get_workspace_role(session, employee, sid)
-                    if not role or not workspace_role_can(role, "contributor"):
-                        return "Error: requires contributor role or above in this workspace."
-                elif scope_type == "department" and sid:
+                if scope_type == "department" and sid:
                     if "wiki:write:all" not in perms and not (
                         "wiki:write:own_dept" in perms and sid in employee.department_ids
                     ):
@@ -1940,19 +1920,10 @@ def register_tools(mcp: FastMCP):
 
             # Permission: editor+ in workspace, wiki:write:all globally, or admin.
             if employee.role != "admin":
-                from app.services.permission_engine import (
-                    _get_user_permissions,
-                    get_workspace_role,
-                    workspace_role_can,
-                )
-                if scope_type == "project" and sid:
-                    role = await get_workspace_role(session, employee, sid)
-                    if not role or not workspace_role_can(role, "editor"):
-                        return f"Error: requires editor role or above in this workspace."
-                else:
-                    perms = _get_user_permissions(employee)
-                    if "wiki:write:all" not in perms:
-                        return "Error: requires wiki:write:all permission. Use propose_wiki_create() instead."
+                from app.services.permission_engine import _get_user_permissions
+                perms = _get_user_permissions(employee)
+                if "wiki:write:all" not in perms:
+                    return "Error: requires wiki:write:all permission. Use propose_wiki_create() instead."
 
             existing = await wiki_service.get_page_by_slug(
                 session, slug, scope_type=scope_type, scope_id=sid,
