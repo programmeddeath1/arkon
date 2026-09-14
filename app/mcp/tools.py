@@ -1407,7 +1407,7 @@ def register_tools(mcp: FastMCP):
         from sqlalchemy.orm import selectinload
 
         from app.database import async_session_factory
-        from app.database.models import Employee, WikiPageDraft
+        from app.database.models import Employee, WikiPage, WikiPageDraft
         from app.services import wiki_service
 
         identity, err = await _get_identity()
