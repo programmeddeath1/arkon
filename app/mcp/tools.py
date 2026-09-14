@@ -1256,7 +1256,11 @@ def register_tools(mcp: FastMCP):
 
             stmt = (
                 select(WikiPageDraft)
-                .join(WikiPage, WikiPage.id == WikiPageDraft.page_id)
+                # OUTER join: a `propose_wiki_create` draft has no page yet
+                # (page_id is NULL), so an inner join silently dropped every
+                # create proposal from the review queue — the proposals that most
+                # need reviewing were the ones nobody could see.
+                .outerjoin(WikiPage, WikiPage.id == WikiPageDraft.page_id)
                 .where(WikiPageDraft.status == "pending")
                 .options(
                     selectinload(WikiPageDraft.page),
