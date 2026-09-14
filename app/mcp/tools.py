@@ -1293,14 +1293,20 @@ def register_tools(mcp: FastMCP):
             lines = []
             for draft in drafts:
                 page = draft.page
-                if not page:
-                    continue
                 author = draft.author
+                when = draft.created_at.strftime("%Y-%m-%d %H:%M")
+                if page is not None:
+                    label = f"**{page.slug}**"
+                else:
+                    # A create draft has no page yet — its proposed slug lives in
+                    # suggested_metadata. Skipping these (as this loop used to)
+                    # hid every new-page proposal from the review queue.
+                    meta = draft.suggested_metadata or {}
+                    label = f"**{meta.get('slug') or '(unnamed)'}** _(new page)_"
                 lines.append(
-                    f"- **{page.slug}** | Draft `{draft.id}` | "
+                    f"- {label} | Draft `{draft.id}` | "
                     f"by {author.name if author else 'unknown'} | "
-                    f"{draft.created_at.strftime('%Y-%m-%d %H:%M')} | "
-                    f"note: {draft.note or '(none)'}"
+                    f"{when} | note: {draft.note or '(none)'}"
                 )
 
         if not lines:
