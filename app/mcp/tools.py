@@ -1436,11 +1436,21 @@ def register_tools(mcp: FastMCP):
                 return "Error: employee not found."
 
             page = draft.page
-            if not page:
+            is_create = getattr(draft, "draft_kind", "edit") == "create"
+            if not page and not is_create:
                 return "Error: parent wiki page not found."
 
-            if not await _can_review_page(session, employee, page):
-                return "Error: insufficient permission to approve drafts for this page."
+            if page is not None:
+                if not await _can_review_page(session, employee, page):
+                    return "Error: insufficient permission to approve drafts for this page."
+            else:
+                # A create draft has no page yet — wiki_service.approve_draft
+                # materialises it from suggested_metadata. Gate on the reviewer's
+                # own ability to write wiki pages.
+                from app.services.permission_engine import _get_user_permissions
+                perms = _get_user_permissions(employee)
+                if employee.role != "admin" and "wiki:write:all" not in perms:
+                    return "Error: insufficient permission to approve a new page."
 
             # Authors cannot approve their own drafts (admins exempt).
             if employee.role != "admin" and draft.author_id == employee.id:
@@ -1458,14 +1468,21 @@ def register_tools(mcp: FastMCP):
                     f"Conflict: {e}. Re-call with allow_conflict=true to overwrite "
                     "or supply edited_content_md after merging the latest changes."
                 )
-            approved_scope_type = page.scope_type or "global"
-            approved_scope_id = page.scope_id
+            # A create draft materialised its page during approval; re-resolve it.
+            if page is None:
+                await session.refresh(draft)
+                if draft.page_id:
+                    page = await session.get(WikiPage, draft.page_id)
+            meta = draft.suggested_metadata or {}
+            approved_scope_type = (page.scope_type if page else meta.get("scope_type")) or "global"
+            approved_scope_id = (page.scope_id if page else meta.get("scope_id"))
             await wiki_service.regenerate_index(
                 session, scope_type=approved_scope_type, scope_id=approved_scope_id,
             )
             await wiki_service.append_log(
                 session,
-                f"Approved draft for: {page.title} ({page.slug}) → v{page.version} via MCP by {employee.name or employee.email}",
+                f"Approved draft for: {(page.title if page else meta.get('title')) or '(new page)'} "
+                f"({(page.slug if page else meta.get('slug')) or '?'}) via MCP by {employee.name or employee.email}",
                 scope_type=approved_scope_type,
                 scope_id=approved_scope_id,
             )
