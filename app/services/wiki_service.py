@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from loguru import logger
-from sqlalchemy import and_, delete, func, or_, select, text
+from sqlalchemy import and_, delete, func, or_, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -1009,16 +1009,23 @@ async def approve_draft(
             knowledge_type_slugs=list(kt_slugs), source_ids=[],
             scope_type=scope_type, scope_id=scope_id,
         )
-        # Tag the create-approval revision with reviewer context.
-        session.add(WikiPageRevision(
-            page_id=page.id,
-            version=page.version,
-            content_md=final_content,
-            change_type="draft_approved_create",
-            draft_id=draft.id,
-            changed_by_id=reviewer_id,
-            change_note=reviewer_note,
-        ))
+        # apply_create already wrote the v1 revision. TAG it with reviewer
+        # context rather than inserting a second row for the same
+        # (page_id, version) — that violated uq_wiki_revisions_page_version and
+        # made every create-draft approval fail.
+        await session.execute(
+            update(WikiPageRevision)
+            .where(
+                WikiPageRevision.page_id == page.id,
+                WikiPageRevision.version == page.version,
+            )
+            .values(
+                change_type="draft_approved_create",
+                draft_id=draft.id,
+                changed_by_id=reviewer_id,
+                change_note=reviewer_note,
+            )
+        )
         # Backfill draft.page_id so subsequent UI reads can join cleanly.
         draft.page_id = page.id
     else:
